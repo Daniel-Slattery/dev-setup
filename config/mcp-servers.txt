@@ -1,0 +1,5 @@
+# name|runtime|install_mode|package|env_vars|install_cmd
+filesystem|node|npm-global|@modelcontextprotocol/server-filesystem|-|codex mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem ~/projects
+memory|node|npm-global|@modelcontextprotocol/server-memory|-|codex mcp add memory -- npx -y @modelcontextprotocol/server-memory
+github|node|npm-global|@modelcontextprotocol/server-github|GITHUB_PERSONAL_ACCESS_TOKEN|codex mcp add github --env GITHUB_PERSONAL_ACCESS_TOKEN=\$GITHUB_PERSONAL_ACCESS_TOKEN -- npx -y @modelcontextprotocol/server-github
+postgres|node|manual|-|POSTGRES_CONNECTION_STRING|codex mcp add postgres --env POSTGRES_CONNECTION_STRING=\$POSTGRES_CONNECTION_STRING -- npx -y @modelcontextprotocol/server-postgres
