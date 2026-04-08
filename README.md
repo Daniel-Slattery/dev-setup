@@ -6,6 +6,7 @@ Reusable development bootstrap for WSL Ubuntu and macOS.
 
 - `setup.sh`: idempotent setup script
 - `zshrc`: shell config installed to `~/.zshrc`
+- `docs/post-setup-checklist.md`: final verification checklist
 - `docs/terminal-setup.md`: terminal and OAuth follow-up notes
 - `modules/github.sh`: optional GitHub bootstrap
 - `modules/mcp.sh`: optional MCP bootstrap
@@ -15,6 +16,7 @@ Reusable development bootstrap for WSL Ubuntu and macOS.
 ## What it does
 
 - Installs core packages with `apt` on Ubuntu and Homebrew on macOS
+- Detects WSL and installs `wslu` for browser handoff support
 - Uses Xcode Command Line Tools on macOS as the `build-essential` equivalent
 - Installs GitHub CLI `gh`
 - Installs Oh My Zsh non-interactively
@@ -26,6 +28,7 @@ Reusable development bootstrap for WSL Ubuntu and macOS.
   - `~/projects/frontend`
   - `~/projects/python-trading`
 - Copies `zshrc` to `~/.zshrc`
+- Backs up an existing `~/.zshrc` to `~/.zshrc.pre-dev-setup`
 - Optionally prepares GitHub SSH setup when `SETUP_GITHUB=1` is set
 - Optionally installs MCP server packages when `INSTALL_MCP=1` is set
 
@@ -73,6 +76,13 @@ chmod +x modules/github.sh
 ./modules/github.sh
 ```
 
+To switch the default login shell to `zsh` during setup:
+
+```bash
+cd ~/dev-setup
+SET_DEFAULT_SHELL=1 ./setup.sh
+```
+
 ## Codex handoff
 
 The intended workflow on a new machine is:
@@ -106,6 +116,7 @@ This is useful because some steps are intentionally not fully automated:
 - Machine-specific verification and cleanup
 
 For terminal-specific follow-up, see [`docs/terminal-setup.md`](/home/daniel/dev-setup/docs/terminal-setup.md).
+For final verification, see [`docs/post-setup-checklist.md`](/home/daniel/dev-setup/docs/post-setup-checklist.md).
 
 ## GitHub structure
 
@@ -128,8 +139,10 @@ For terminal-specific follow-up, see [`docs/terminal-setup.md`](/home/daniel/dev
 - Safe to re-run
 - Requires `sudo`
 - On macOS, `bubblewrap` is skipped because it is not a standard supported dependency there
+- On macOS, Xcode Command Line Tools installation can require brief user interaction before the script continues
 - GitHub setup is opt-in and disabled by default
 - MCP setup is opt-in and disabled by default
+- Default shell switching is opt-in and disabled by default
 - After completion, restart the shell or run:
 
 ```bash

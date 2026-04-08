@@ -12,6 +12,12 @@ P10K_DIR="${ZSH_CUSTOM:-$OH_MY_ZSH_DIR/custom}/themes/powerlevel10k"
 OS_TYPE="$(uname -s)"
 INSTALL_MCP="${INSTALL_MCP:-0}"
 SETUP_GITHUB="${SETUP_GITHUB:-0}"
+SET_DEFAULT_SHELL="${SET_DEFAULT_SHELL:-0}"
+IS_WSL=0
+
+if [ -r /proc/version ] && grep -qiE '(microsoft|wsl)' /proc/version; then
+  IS_WSL=1
+fi
 
 log() {
   printf '\n[%s] %s\n' "$(date '+%H:%M:%S')" "$1"
@@ -105,6 +111,10 @@ install_core_packages_apt() {
   )
   local missing=()
 
+  if [ "$IS_WSL" = "1" ]; then
+    packages+=(wslu)
+  fi
+
   for pkg in "${packages[@]}"; do
     if ! apt_pkg_installed "$pkg"; then
       missing+=("$pkg")
@@ -119,6 +129,10 @@ install_core_packages_apt() {
   log "Installing core packages with apt: ${missing[*]}"
   sudo apt-get update
   sudo apt-get install -y "${missing[@]}"
+
+  if [ "$IS_WSL" = "1" ]; then
+    log "WSL detected; browser bridge support is included via wslu"
+  fi
 }
 
 install_brew_formula() {
@@ -261,8 +275,40 @@ install_zshrc() {
     return
   fi
 
+  if [ -f "$ZSHRC_TARGET" ]; then
+    local backup_target
+    backup_target="$HOME/.zshrc.pre-dev-setup"
+
+    if [ ! -f "$backup_target" ]; then
+      log "Backing up existing .zshrc to $backup_target"
+      cp "$ZSHRC_TARGET" "$backup_target"
+    else
+      log "Backup already exists at $backup_target"
+    fi
+  fi
+
   log "Installing .zshrc to $ZSHRC_TARGET"
   cp "$ZSHRC_SOURCE" "$ZSHRC_TARGET"
+}
+
+set_default_shell_to_zsh() {
+  local zsh_path
+  zsh_path="$(command -v zsh || true)"
+
+  [ -n "$zsh_path" ] || die "zsh is not installed"
+
+  if [ "${SHELL:-}" = "$zsh_path" ]; then
+    log "Default shell already set to zsh"
+    return
+  fi
+
+  if [ "$SET_DEFAULT_SHELL" != "1" ]; then
+    log "Skipping default shell change. Set SET_DEFAULT_SHELL=1 to switch to zsh"
+    return
+  fi
+
+  log "Setting default shell to zsh"
+  chsh -s "$zsh_path"
 }
 
 run_optional_mcp_setup() {
@@ -302,6 +348,7 @@ main() {
   install_codex
   create_project_directories
   install_zshrc
+  set_default_shell_to_zsh
   run_optional_github_setup
   run_optional_mcp_setup
   log "Setup complete"
