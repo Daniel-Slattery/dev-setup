@@ -1,10 +1,12 @@
 # Terminal setup
 
-This document covers terminal-specific configuration that is outside the scope of the base shell bootstrap.
+This document covers terminal-specific configuration and manual fallbacks for cases where automatic setup cannot apply.
 
 ## Windows Terminal
 
-To make `Shift+Enter` insert a newline instead of submitting immediately in terminal-based AI tools, add a custom `sendInput` action to Windows Terminal.
+`setup.sh` now tries to apply this automatically on WSL by editing Windows Terminal `settings.json`.
+
+If it cannot apply the change (missing file, parse issue, or existing conflicting keybinding), add this manually.
 
 The settings file is usually here:
 
@@ -68,5 +70,5 @@ Exact UI wording can vary by iTerm2 version, but the goal is the same: make `Shi
 
 ## Notes
 
-- These settings are terminal-specific and should be documented rather than forced by `setup.sh`
+- You can disable automatic Windows Terminal key mapping with `CONFIGURE_WT_SHIFT_ENTER=0 ./setup.sh`
 - Not every terminal application handles multiline input the same way, but terminal key mapping is the first thing to fix

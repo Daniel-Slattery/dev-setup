@@ -5,7 +5,8 @@ Reusable development bootstrap for WSL Ubuntu and macOS.
 ## Files
 
 - `setup.sh`: idempotent setup script
-- `zshrc`: shell config installed to `~/.zshrc`
+- `zshrc`: base shell config used when `~/.zshrc` does not exist
+- `zshrc.append`: additive zsh config appended to existing `~/.zshrc`
 - `docs/post-setup-checklist.md`: final verification checklist
 - `docs/terminal-setup.md`: terminal and OAuth follow-up notes
 - `modules/github.sh`: optional GitHub bootstrap
@@ -17,18 +18,23 @@ Reusable development bootstrap for WSL Ubuntu and macOS.
 
 - Installs core packages with `apt` on Ubuntu and Homebrew on macOS
 - Detects WSL and installs `wslu` for browser handoff support
+- Runs preflight checks and warns about common WSL OAuth/browser gaps before install
+- On WSL, attempts to configure Windows Terminal so `Shift+Enter` sends a newline
 - Uses Xcode Command Line Tools on macOS as the `build-essential` equivalent
 - Installs GitHub CLI `gh`
 - Installs Oh My Zsh non-interactively
 - Installs `powerlevel10k`
 - Installs `nvm` if missing
+- Removes npm prefix/globalconfig conflicts that break `nvm`
 - Installs the latest LTS Node version and sets it as default
 - Installs Codex via `npm install -g @openai/codex`
 - Creates:
   - `~/projects/frontend`
   - `~/projects/python-trading`
-- Copies `zshrc` to `~/.zshrc`
-- Backs up an existing `~/.zshrc` to `~/.zshrc.pre-dev-setup`
+- Installs shared PATH config at `~/.config/dev-setup/path.sh` and sources it from bash/zsh
+- Copies `zshrc` only when `~/.zshrc` does not exist
+- Appends managed additions to existing `~/.zshrc` instead of replacing it
+- Backs up an existing `~/.zshrc` to `~/.zshrc.pre-dev-setup` before first append
 - Optionally prepares GitHub SSH setup when `SETUP_GITHUB=1` is set
 - Optionally installs MCP server packages and prints Codex registration commands when `INSTALL_MCP=1` is set
 
@@ -144,6 +150,7 @@ For final verification, see [`docs/post-setup-checklist.md`](/home/daniel/dev-se
 - GitHub setup is opt-in and disabled by default
 - MCP setup is opt-in and disabled by default
 - Default shell switching is opt-in and disabled by default
+- Windows Terminal `Shift+Enter` mapping can be disabled with `CONFIGURE_WT_SHIFT_ENTER=0`
 - After completion, restart the shell or run:
 
 ```bash

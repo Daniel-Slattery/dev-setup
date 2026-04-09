@@ -37,7 +37,7 @@ Use this after running `./setup.sh` on a new machine.
 
 ## Terminal behavior
 
-- verify `Shift+Enter` inserts a newline in your terminal AI tool
+- verify `Shift+Enter` inserts a newline in your terminal AI tool (auto-configured on WSL when possible)
 - if needed, follow [`terminal-setup.md`](/home/daniel/dev-setup/docs/terminal-setup.md)
 
 ## Directories

@@ -3,16 +3,21 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ZSHRC_SOURCE="$SCRIPT_DIR/zshrc"
+ZSHRC_APPEND_SOURCE="$SCRIPT_DIR/zshrc.append"
 ZSHRC_TARGET="$HOME/.zshrc"
+BASHRC_TARGET="$HOME/.bashrc"
 MCP_SETUP_SCRIPT="$SCRIPT_DIR/modules/mcp.sh"
 GITHUB_SETUP_SCRIPT="$SCRIPT_DIR/modules/github.sh"
 NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 OH_MY_ZSH_DIR="${ZSH:-$HOME/.oh-my-zsh}"
 P10K_DIR="${ZSH_CUSTOM:-$OH_MY_ZSH_DIR/custom}/themes/powerlevel10k"
+DEV_SETUP_CONFIG_DIR="$HOME/.config/dev-setup"
+SHARED_PATH_FILE="$DEV_SETUP_CONFIG_DIR/path.sh"
 OS_TYPE="$(uname -s)"
 INSTALL_MCP="${INSTALL_MCP:-0}"
 SETUP_GITHUB="${SETUP_GITHUB:-0}"
 SET_DEFAULT_SHELL="${SET_DEFAULT_SHELL:-0}"
+CONFIGURE_WT_SHIFT_ENTER="${CONFIGURE_WT_SHIFT_ENTER:-1}"
 IS_WSL=0
 
 if [ -r /proc/version ] && grep -qiE '(microsoft|wsl)' /proc/version; then
@@ -46,8 +51,197 @@ require_command() {
   command -v "$1" >/dev/null 2>&1
 }
 
+ensure_file_exists() {
+  local file="$1"
+
+  if [ -f "$file" ]; then
+    return
+  fi
+
+  touch "$file"
+}
+
+ensure_line_in_file() {
+  local file="$1"
+  local line="$2"
+
+  ensure_file_exists "$file"
+
+  if grep -Fqx "$line" "$file"; then
+    return
+  fi
+
+  printf '\n%s\n' "$line" >>"$file"
+}
+
+backup_file_once() {
+  local file="$1"
+  local backup="$2"
+
+  if [ -f "$file" ] && [ ! -f "$backup" ]; then
+    cp "$file" "$backup"
+  fi
+}
+
+remove_pattern_from_file() {
+  local file="$1"
+  local regex="$2"
+  local backup_suffix="$3"
+
+  if [ ! -f "$file" ]; then
+    return
+  fi
+
+  if ! grep -Eq "$regex" "$file"; then
+    return
+  fi
+
+  local tmp_file
+  tmp_file="$(mktemp)"
+  grep -Ev "$regex" "$file" >"$tmp_file" || true
+  backup_file_once "$file" "$file.$backup_suffix"
+  mv "$tmp_file" "$file"
+}
+
 apt_pkg_installed() {
   dpkg -s "$1" >/dev/null 2>&1
+}
+
+preflight_checks() {
+  log "Running preflight checks"
+
+  if [ "$OS_TYPE" = "Linux" ] && [ "$IS_WSL" = "1" ] && ! require_command wslview; then
+    log "WSL detected: browser handoff helper (wslview) missing now; it will be installed via wslu"
+    log "If a browser login step appears before that, use the device URL/code manually"
+  fi
+
+  if [ -f "$HOME/.npmrc" ] && grep -Eq '^[[:space:]]*(prefix|globalconfig)[[:space:]]*=' "$HOME/.npmrc"; then
+    log "Found npm prefix/globalconfig entries in ~/.npmrc; these will be cleaned before nvm use"
+  fi
+
+  if require_command gh; then
+    local gh_version
+    gh_version="$(gh --version | awk 'NR==1 {print $3}')"
+    log "Detected gh version: $gh_version"
+  fi
+
+  if [ "$IS_WSL" = "1" ] && [ "$CONFIGURE_WT_SHIFT_ENTER" = "1" ]; then
+    log "WSL detected: setup will try to configure Windows Terminal Shift+Enter newline"
+  fi
+}
+
+find_windows_terminal_settings() {
+  local settings_glob
+  local settings_path
+  settings_glob='/mnt/c/Users/*/AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json'
+
+  for settings_path in $settings_glob; do
+    if [ -f "$settings_path" ]; then
+      printf '%s\n' "$settings_path"
+      return
+    fi
+  done
+}
+
+configure_windows_terminal_shift_enter() {
+  if [ "$IS_WSL" != "1" ] || [ "$CONFIGURE_WT_SHIFT_ENTER" != "1" ]; then
+    return
+  fi
+
+  local settings_path
+  settings_path="$(find_windows_terminal_settings || true)"
+
+  if [ -z "$settings_path" ]; then
+    log "Windows Terminal settings not found; skipping Shift+Enter fix"
+    return
+  fi
+
+  if ! require_command python3; then
+    log "python3 not found; skipping automatic Shift+Enter fix"
+    return
+  fi
+
+  local result
+  result="$(python3 - "$settings_path" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+settings_path = Path(sys.argv[1])
+raw = settings_path.read_text(encoding="utf-8")
+
+try:
+    data = json.loads(raw)
+except json.JSONDecodeError:
+    print("json-parse-failed")
+    sys.exit(0)
+
+action_id = "User.sendNewLineInput"
+
+actions = data.get("actions")
+if not isinstance(actions, list):
+    actions = []
+    data["actions"] = actions
+
+keybindings = data.get("keybindings")
+if not isinstance(keybindings, list):
+    keybindings = []
+    data["keybindings"] = keybindings
+
+shift_enter_binding = None
+for entry in keybindings:
+    if isinstance(entry, dict) and str(entry.get("keys", "")).lower() == "shift+enter":
+        shift_enter_binding = entry
+        break
+
+if shift_enter_binding and shift_enter_binding.get("id") != action_id:
+    print("shift-enter-in-use")
+    sys.exit(0)
+
+changed = False
+
+if not any(isinstance(entry, dict) and entry.get("id") == action_id for entry in actions):
+    actions.append({
+        "command": {
+            "action": "sendInput",
+            "input": "\n",
+        },
+        "id": action_id,
+    })
+    changed = True
+
+if shift_enter_binding is None:
+    keybindings.append({
+        "id": action_id,
+        "keys": "shift+enter",
+    })
+    changed = True
+
+if changed:
+    settings_path.write_text(json.dumps(data, indent=4) + "\n", encoding="utf-8")
+    print("updated")
+else:
+    print("already-set")
+PY
+)"
+
+  case "$result" in
+    updated)
+      log "Configured Windows Terminal Shift+Enter newline: $settings_path"
+      ;;
+    already-set)
+      log "Windows Terminal Shift+Enter newline already configured"
+      ;;
+    shift-enter-in-use)
+      log "Shift+Enter is already bound in Windows Terminal; leaving existing binding unchanged"
+      ;;
+    json-parse-failed)
+      log "Could not parse Windows Terminal settings.json; configure Shift+Enter manually"
+      ;;
+    *)
+      log "Shift+Enter setup returned: $result"
+      ;;
+  esac
 }
 
 install_homebrew() {
@@ -215,6 +409,21 @@ install_nvm() {
   curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 }
 
+sanitize_npm_prefix_conflicts() {
+  log "Checking npm and nvm compatibility"
+
+  remove_pattern_from_file "$HOME/.npmrc" '^[[:space:]]*(prefix|globalconfig)[[:space:]]*=' 'pre-dev-setup'
+  remove_pattern_from_file "$BASHRC_TARGET" '[.]npm-global/bin' 'pre-dev-setup'
+  remove_pattern_from_file "$ZSHRC_TARGET" '[.]npm-global/bin' 'pre-dev-setup'
+
+  unset npm_config_prefix NPM_CONFIG_PREFIX PREFIX
+
+  if require_command npm; then
+    npm config delete prefix >/dev/null 2>&1 || true
+    npm config delete globalconfig >/dev/null 2>&1 || true
+  fi
+}
+
 load_nvm() {
   export NVM_DIR="$NVM_DIR"
 
@@ -233,6 +442,7 @@ install_node_lts() {
   log "Installing latest LTS Node via NVM"
   nvm install --lts
   nvm alias default 'lts/*' >/dev/null
+  nvm use --delete-prefix default >/dev/null 2>&1 || true
 
   if [ "$current_default" = "N/A" ] || [ -z "$current_default" ]; then
     log "Default Node version set to latest LTS"
@@ -267,28 +477,52 @@ create_project_directories() {
   done
 }
 
+install_shared_shell_path() {
+  mkdir -p "$DEV_SETUP_CONFIG_DIR"
+
+  cat >"$SHARED_PATH_FILE" <<'EOF'
+# Added by dev-setup: shared PATH entries.
+if [ -d "$HOME/.opencode/bin" ]; then
+  case ":$PATH:" in
+    *":$HOME/.opencode/bin:"*) ;;
+    *) PATH="$HOME/.opencode/bin:$PATH" ;;
+  esac
+fi
+
+export PATH
+EOF
+
+  ensure_line_in_file "$BASHRC_TARGET" '[ -f "$HOME/.config/dev-setup/path.sh" ] && . "$HOME/.config/dev-setup/path.sh"'
+  ensure_line_in_file "$ZSHRC_TARGET" '[ -f "$HOME/.config/dev-setup/path.sh" ] && . "$HOME/.config/dev-setup/path.sh"'
+}
+
 install_zshrc() {
   [ -f "$ZSHRC_SOURCE" ] || die "Missing source zshrc file at $ZSHRC_SOURCE"
+  [ -f "$ZSHRC_APPEND_SOURCE" ] || die "Missing zsh append file at $ZSHRC_APPEND_SOURCE"
 
-  if [ -f "$ZSHRC_TARGET" ] && cmp -s "$ZSHRC_SOURCE" "$ZSHRC_TARGET"; then
-    log ".zshrc already up to date"
+  if [ ! -f "$ZSHRC_TARGET" ]; then
+    log "Installing new .zshrc to $ZSHRC_TARGET"
+    cp "$ZSHRC_SOURCE" "$ZSHRC_TARGET"
     return
   fi
 
-  if [ -f "$ZSHRC_TARGET" ]; then
-    local backup_target
-    backup_target="$HOME/.zshrc.pre-dev-setup"
+  local marker_start marker_end
+  marker_start="# >>> dev-setup zsh additions >>>"
+  marker_end="# <<< dev-setup zsh additions <<<"
 
-    if [ ! -f "$backup_target" ]; then
-      log "Backing up existing .zshrc to $backup_target"
-      cp "$ZSHRC_TARGET" "$backup_target"
-    else
-      log "Backup already exists at $backup_target"
-    fi
+  if grep -Fq "$marker_start" "$ZSHRC_TARGET"; then
+    log ".zshrc already includes dev-setup additions"
+    return
   fi
 
-  log "Installing .zshrc to $ZSHRC_TARGET"
-  cp "$ZSHRC_SOURCE" "$ZSHRC_TARGET"
+  backup_file_once "$ZSHRC_TARGET" "$HOME/.zshrc.pre-dev-setup"
+
+  log "Appending dev-setup zsh additions to existing .zshrc"
+  {
+    printf '\n%s\n' "$marker_start"
+    cat "$ZSHRC_APPEND_SOURCE"
+    printf '%s\n' "$marker_end"
+  } >>"$ZSHRC_TARGET"
 }
 
 set_default_shell_to_zsh() {
@@ -335,22 +569,54 @@ run_optional_github_setup() {
   "$GITHUB_SETUP_SCRIPT"
 }
 
+print_post_setup_summary() {
+  local shell_path shell_process node_version npm_version gh_version codex_path
+  local ssh_check_output
+
+  shell_path="${SHELL:-unknown}"
+  shell_process="${0:-unknown}"
+  node_version="$(node -v 2>/dev/null || printf 'missing')"
+  npm_version="$(npm -v 2>/dev/null || printf 'missing')"
+  gh_version="$(gh --version 2>/dev/null | awk 'NR==1 {print $3}' || printf 'missing')"
+  codex_path="$(command -v codex 2>/dev/null || printf 'missing')"
+
+  log "Post-setup verification"
+  printf '%s\n' "- SHELL env: $shell_path"
+  printf '%s\n' "- Current shell process: $shell_process"
+  printf '%s\n' "- Node: $node_version"
+  printf '%s\n' "- npm: $npm_version"
+  printf '%s\n' "- gh: $gh_version"
+  printf '%s\n' "- codex: $codex_path"
+
+  ssh_check_output="$(ssh -T -o BatchMode=yes -o ConnectTimeout=5 git@github.com 2>&1 || true)"
+  if printf '%s' "$ssh_check_output" | grep -qi 'successfully authenticated'; then
+    printf '%s\n' "- GitHub SSH auth: OK"
+  else
+    printf '%s\n' "- GitHub SSH auth: not verified in non-interactive mode"
+  fi
+}
+
 main() {
   require_sudo
 
   log "Starting development environment setup on $OS_TYPE"
+  preflight_checks
+  configure_windows_terminal_shift_enter
   install_core_packages
   install_oh_my_zsh
   install_powerlevel10k
   install_nvm
+  sanitize_npm_prefix_conflicts
   load_nvm
   install_node_lts
   install_codex
   create_project_directories
   install_zshrc
+  install_shared_shell_path
   set_default_shell_to_zsh
   run_optional_github_setup
   run_optional_mcp_setup
+  print_post_setup_summary
   log "Setup complete"
   log "Restart your shell or run: exec zsh"
 }
