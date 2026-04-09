@@ -57,7 +57,6 @@ ensure_manifest_exists() {
 }
 
 process_manifest() {
-  local line
   local name
   local runtime
   local install_mode
@@ -91,6 +90,11 @@ process_manifest() {
 
     if [ -n "$env_vars" ] && [ "$env_vars" != "-" ]; then
       log "Required env vars for $name: $env_vars"
+    fi
+
+    if [ -n "$install_cmd" ] && [ "$install_cmd" != "-" ]; then
+      log "Register with Codex:"
+      printf '%s\n' "$install_cmd"
     fi
   done < "$MCP_MANIFEST"
 }

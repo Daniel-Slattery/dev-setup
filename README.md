@@ -30,7 +30,7 @@ Reusable development bootstrap for WSL Ubuntu and macOS.
 - Copies `zshrc` to `~/.zshrc`
 - Backs up an existing `~/.zshrc` to `~/.zshrc.pre-dev-setup`
 - Optionally prepares GitHub SSH setup when `SETUP_GITHUB=1` is set
-- Optionally installs MCP server packages when `INSTALL_MCP=1` is set
+- Optionally installs MCP server packages and prints Codex registration commands when `INSTALL_MCP=1` is set
 
 ## Run on a new machine
 
@@ -137,6 +137,7 @@ For final verification, see [`docs/post-setup-checklist.md`](/home/daniel/dev-se
 ## Notes
 
 - Safe to re-run
+- Re-running will also refresh Node to the current LTS release and set it as the default
 - Requires `sudo`
 - On macOS, `bubblewrap` is skipped because it is not a standard supported dependency there
 - On macOS, Xcode Command Line Tools installation can require brief user interaction before the script continues
