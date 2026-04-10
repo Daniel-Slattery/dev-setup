@@ -11,6 +11,7 @@ GITHUB_SETUP_SCRIPT="$SCRIPT_DIR/modules/github.sh"
 P10K_CONFIG_SOURCE="$SCRIPT_DIR/config/p10k/p10k.zsh"
 P10K_CONFIG_TARGET="$HOME/.p10k.zsh"
 NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+PYENV_ROOT="${PYENV_ROOT:-$HOME/.pyenv}"
 OH_MY_ZSH_DIR="${ZSH:-$HOME/.oh-my-zsh}"
 P10K_DIR="${ZSH_CUSTOM:-$OH_MY_ZSH_DIR/custom}/themes/powerlevel10k"
 DEV_SETUP_CONFIG_DIR="$HOME/.config/dev-setup"
@@ -319,6 +320,16 @@ install_core_packages_apt() {
     fd-find
     bat
     bubblewrap
+    make
+    libssl-dev
+    zlib1g-dev
+    libbz2-dev
+    libreadline-dev
+    libsqlite3-dev
+    libffi-dev
+    liblzma-dev
+    xz-utils
+    tk-dev
   )
   local missing=()
 
@@ -367,6 +378,12 @@ install_core_packages_brew() {
     ripgrep
     fd
     bat
+    openssl
+    readline
+    sqlite
+    xz
+    zlib
+    tcl-tk
   )
   local formula
 
@@ -438,6 +455,16 @@ install_nvm() {
   curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 }
 
+install_pyenv() {
+  if [ -x "$PYENV_ROOT/bin/pyenv" ]; then
+    log "pyenv already installed"
+    return
+  fi
+
+  log "Installing pyenv"
+  curl -fsSL https://pyenv.run | bash
+}
+
 sanitize_npm_prefix_conflicts() {
   log "Checking npm and nvm compatibility"
 
@@ -462,6 +489,58 @@ load_nvm() {
 
   # shellcheck disable=SC1090
   . "$NVM_DIR/nvm.sh"
+}
+
+load_pyenv() {
+  export PYENV_ROOT="$PYENV_ROOT"
+
+  if [ ! -x "$PYENV_ROOT/bin/pyenv" ]; then
+    die "pyenv install appears incomplete: $PYENV_ROOT/bin/pyenv not found"
+  fi
+
+  case ":$PATH:" in
+    *":$PYENV_ROOT/bin:"*) ;;
+    *) PATH="$PYENV_ROOT/bin:$PATH" ;;
+  esac
+
+  case ":$PATH:" in
+    *":$PYENV_ROOT/shims:"*) ;;
+    *) PATH="$PYENV_ROOT/shims:$PATH" ;;
+  esac
+
+  export PATH
+  eval "$(pyenv init - bash)"
+}
+
+latest_pyenv_python_version() {
+  pyenv install --list | awk '
+    /^[[:space:]]*[0-9]+\.[0-9]+\.[0-9]+[[:space:]]*$/ {
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+      version = $0
+    }
+    END {
+      if (version != "") {
+        print version
+      }
+    }
+  '
+}
+
+install_latest_python_with_pyenv() {
+  local latest_python
+  latest_python="$(latest_pyenv_python_version)"
+
+  [ -n "$latest_python" ] || die "Could not determine latest stable Python version from pyenv"
+
+  if pyenv versions --bare | grep -Fxq "$latest_python"; then
+    log "Latest stable Python already installed via pyenv: $latest_python"
+  else
+    log "Installing latest stable Python via pyenv: $latest_python"
+    pyenv install "$latest_python"
+  fi
+
+  pyenv global "$latest_python"
+  log "Default Python version set via pyenv: $latest_python"
 }
 
 install_node_lts() {
@@ -519,7 +598,7 @@ install_opencode() {
 create_project_directories() {
   local dirs=(
     "$HOME/projects/frontend"
-    "$HOME/projects/python-trading"
+    "$HOME/projects/python-projects"
   )
 
   for dir in "${dirs[@]}"; do
@@ -537,6 +616,21 @@ install_shared_shell_path() {
 
   write_file_if_changed "$SHARED_PATH_FILE" <<'EOF'
 # Added by dev-setup: shared PATH entries.
+export PYENV_ROOT="${PYENV_ROOT:-$HOME/.pyenv}"
+if [ -d "$PYENV_ROOT/bin" ]; then
+  case ":$PATH:" in
+    *":$PYENV_ROOT/bin:"*) ;;
+    *) PATH="$PYENV_ROOT/bin:$PATH" ;;
+  esac
+fi
+
+if [ -d "$PYENV_ROOT/shims" ]; then
+  case ":$PATH:" in
+    *":$PYENV_ROOT/shims:"*) ;;
+    *) PATH="$PYENV_ROOT/shims:$PATH" ;;
+  esac
+fi
+
 if [ -d "$HOME/.opencode/bin" ]; then
   case ":$PATH:" in
     *":$HOME/.opencode/bin:"*) ;;
@@ -548,7 +642,9 @@ export PATH
 EOF
 
   ensure_line_in_file "$BASHRC_TARGET" '[ -f "$HOME/.config/dev-setup/path.sh" ] && . "$HOME/.config/dev-setup/path.sh"'
+  ensure_line_in_file "$BASHRC_TARGET" 'command -v pyenv >/dev/null 2>&1 && eval "$(pyenv init - bash)"'
   ensure_line_in_file "$ZSHRC_TARGET" '[ -f "$HOME/.config/dev-setup/path.sh" ] && . "$HOME/.config/dev-setup/path.sh"'
+  ensure_line_in_file "$ZSHRC_TARGET" 'command -v pyenv >/dev/null 2>&1 && eval "$(pyenv init - zsh)"'
 }
 
 load_shared_shell_path() {
@@ -665,7 +761,7 @@ run_optional_github_setup() {
 }
 
 print_post_setup_summary() {
-  local shell_path shell_process login_shell node_version npm_version gh_version codex_path opencode_path
+  local shell_path shell_process login_shell node_version npm_version gh_version python_version pyenv_version codex_path opencode_path
   local ssh_check_output
 
   shell_path="${SHELL:-unknown}"
@@ -674,6 +770,8 @@ print_post_setup_summary() {
   node_version="$(node -v 2>/dev/null || printf 'missing')"
   npm_version="$(npm -v 2>/dev/null || printf 'missing')"
   gh_version="$(gh --version 2>/dev/null | awk 'NR==1 {print $3}' || printf 'missing')"
+  python_version="$(python --version 2>/dev/null || printf 'missing')"
+  pyenv_version="$(pyenv --version 2>/dev/null || printf 'missing')"
   codex_path="$(command -v codex 2>/dev/null || printf 'missing')"
   opencode_path="$(find_opencode_binary || printf 'missing')"
 
@@ -681,6 +779,8 @@ print_post_setup_summary() {
   printf '%s\n' "- SHELL env: $shell_path"
   printf '%s\n' "- Login shell: $login_shell"
   printf '%s\n' "- Current shell process: $shell_process"
+  printf '%s\n' "- Python: $python_version"
+  printf '%s\n' "- pyenv: $pyenv_version"
   printf '%s\n' "- Node: $node_version"
   printf '%s\n' "- npm: $npm_version"
   printf '%s\n' "- gh: $gh_version"
@@ -709,6 +809,9 @@ main() {
   sanitize_npm_prefix_conflicts
   load_nvm
   install_node_lts
+  install_pyenv
+  load_pyenv
+  install_latest_python_with_pyenv
   install_codex
   create_project_directories
   install_shared_shell_path

@@ -48,7 +48,7 @@ alias ..='cd ..'
 alias ...='cd ../..'
 alias cdp='cd ~/projects'
 alias cdf='cd ~/projects/frontend'
-alias cdt='cd ~/projects/python-trading'
+alias cdt='cd ~/projects/python-projects'
 
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 # <<< dev-setup zsh additions <<<

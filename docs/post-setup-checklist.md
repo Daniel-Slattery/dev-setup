@@ -7,6 +7,8 @@ Use this after running `./setup.sh`, `./profiles/work.sh`, or `./profiles/person
 - `zsh --version`
 - `git --version`
 - `gh --version`
+- `pyenv --version`
+- `python --version`
 - `node --version`
 - `npm --version`
 - `codex --version`
@@ -28,6 +30,12 @@ Use this after running `./setup.sh`, `./profiles/work.sh`, or `./profiles/person
 - `nvm current`
 - `nvm alias default`
 
+## Python and pyenv
+
+- `pyenv versions`
+- `pyenv global`
+- `python --version`
+
 ## GitHub
 
 - `gh auth status`
@@ -47,7 +55,7 @@ Use this after running `./setup.sh`, `./profiles/work.sh`, or `./profiles/person
 ## Directories
 
 - `test -d ~/projects/frontend && echo frontend-ok`
-- `test -d ~/projects/python-trading && echo python-trading-ok`
+- `test -d ~/projects/python-projects && echo python-projects-ok`
 
 ## Optional layers
 

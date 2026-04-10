@@ -17,6 +17,8 @@ Or use a profile wrapper:
 ./profiles/personal.sh
 ```
 
+`setup.sh` installs `pyenv`, then installs the latest stable Python release and sets it as the global default. Use `.python-version` files per repo when you want a project-specific Python version.
+
 ## What is macOS-specific
 
 - `setup.sh` installs Homebrew if needed

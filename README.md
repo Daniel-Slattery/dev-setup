@@ -47,18 +47,21 @@ SET_DEFAULT_SHELL=1 ./setup.sh
 - Detects WSL and installs `wslu` for browser handoff support
 - Tries to configure Windows Terminal so `Shift+Enter` sends a newline on WSL
 - Uses Xcode Command Line Tools on macOS as the `build-essential` equivalent
+- Installs `pyenv` for Python version management
+- Installs the latest stable Python release via `pyenv` and sets it as global default
 - Installs GitHub CLI `gh`
 - Installs Oh My Zsh non-interactively
 - Installs `powerlevel10k`
 - Installs a managed `~/.p10k.zsh` so the first-run wizard is skipped
 - Installs `nvm` if missing
+- Auto-initializes `pyenv` so `.python-version` files work in new shells
 - Removes npm prefix/globalconfig conflicts that break `nvm`
 - Installs the latest LTS Node version and sets it as default
 - Installs Codex via `npm install -g @openai/codex`
 - Optionally installs OpenCode when `INSTALL_OPENCODE=1`
 - Creates:
   - `~/projects/frontend`
-  - `~/projects/python-trading`
+  - `~/projects/python-projects`
 - Installs shared PATH config at `~/.config/dev-setup/path.sh`
 - Copies `zshrc` only when `~/.zshrc` does not exist
 - Appends managed additions to existing `~/.zshrc` instead of replacing it

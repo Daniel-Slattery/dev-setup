@@ -17,6 +17,8 @@ Or, if you want the work/personal defaults:
 ./profiles/personal.sh
 ```
 
+`setup.sh` installs `pyenv`, then installs the latest stable Python release and sets it as the global default. Use `.python-version` files per repo when you want a project-specific Python version.
+
 ## What is WSL-specific
 
 - `setup.sh` installs `wslu` so Linux tools can open URLs in Windows
