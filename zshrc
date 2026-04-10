@@ -10,6 +10,7 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 [ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"
 
+# >>> dev-setup zsh additions >>>
 load-nvmrc() {
   local node_version
   local nvmrc_path
@@ -50,3 +51,4 @@ alias cdf='cd ~/projects/frontend'
 alias cdt='cd ~/projects/python-trading'
 
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+# <<< dev-setup zsh additions <<<

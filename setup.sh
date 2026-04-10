@@ -8,6 +8,8 @@ ZSHRC_TARGET="$HOME/.zshrc"
 BASHRC_TARGET="$HOME/.bashrc"
 MCP_SETUP_SCRIPT="$SCRIPT_DIR/modules/mcp.sh"
 GITHUB_SETUP_SCRIPT="$SCRIPT_DIR/modules/github.sh"
+P10K_CONFIG_SOURCE="$SCRIPT_DIR/config/p10k/p10k.zsh"
+P10K_CONFIG_TARGET="$HOME/.p10k.zsh"
 NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 OH_MY_ZSH_DIR="${ZSH:-$HOME/.oh-my-zsh}"
 P10K_DIR="${ZSH_CUSTOM:-$OH_MY_ZSH_DIR/custom}/themes/powerlevel10k"
@@ -17,6 +19,7 @@ OS_TYPE="$(uname -s)"
 INSTALL_MCP="${INSTALL_MCP:-0}"
 SETUP_GITHUB="${SETUP_GITHUB:-0}"
 SET_DEFAULT_SHELL="${SET_DEFAULT_SHELL:-0}"
+INSTALL_OPENCODE="${INSTALL_OPENCODE:-0}"
 CONFIGURE_WT_SHIFT_ENTER="${CONFIGURE_WT_SHIFT_ENTER:-1}"
 IS_WSL=0
 
@@ -101,6 +104,20 @@ remove_pattern_from_file() {
   grep -Ev "$regex" "$file" >"$tmp_file" || true
   backup_file_once "$file" "$file.$backup_suffix"
   mv "$tmp_file" "$file"
+}
+
+write_file_if_changed() {
+  local target="$1"
+  local tmp_file
+  tmp_file="$(mktemp)"
+  cat >"$tmp_file"
+
+  if [ -f "$target" ] && cmp -s "$tmp_file" "$target"; then
+    rm -f "$tmp_file"
+    return
+  fi
+
+  mv "$tmp_file" "$target"
 }
 
 apt_pkg_installed() {
@@ -399,6 +416,18 @@ install_powerlevel10k() {
   git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$P10K_DIR"
 }
 
+install_p10k_config() {
+  [ -f "$P10K_CONFIG_SOURCE" ] || die "Missing powerlevel10k config at $P10K_CONFIG_SOURCE"
+
+  if [ -f "$P10K_CONFIG_TARGET" ]; then
+    log "powerlevel10k config already exists: $P10K_CONFIG_TARGET"
+    return
+  fi
+
+  log "Installing managed powerlevel10k config to $P10K_CONFIG_TARGET"
+  cp "$P10K_CONFIG_SOURCE" "$P10K_CONFIG_TARGET"
+}
+
 install_nvm() {
   if [ -s "$NVM_DIR/nvm.sh" ]; then
     log "NVM already installed"
@@ -461,6 +490,32 @@ install_codex() {
   npm install -g @openai/codex
 }
 
+find_opencode_binary() {
+  if require_command opencode; then
+    command -v opencode
+    return
+  fi
+
+  if [ -x "$HOME/.opencode/bin/opencode" ]; then
+    printf '%s\n' "$HOME/.opencode/bin/opencode"
+  fi
+}
+
+install_opencode() {
+  if [ "$INSTALL_OPENCODE" != "1" ]; then
+    log "Skipping OpenCode install. Set INSTALL_OPENCODE=1 to enable it"
+    return
+  fi
+
+  if [ -n "$(find_opencode_binary || true)" ]; then
+    log "OpenCode already installed"
+    return
+  fi
+
+  log "Installing OpenCode"
+  curl -fsSL https://opencode.ai/install | bash
+}
+
 create_project_directories() {
   local dirs=(
     "$HOME/projects/frontend"
@@ -480,7 +535,7 @@ create_project_directories() {
 install_shared_shell_path() {
   mkdir -p "$DEV_SETUP_CONFIG_DIR"
 
-  cat >"$SHARED_PATH_FILE" <<'EOF'
+  write_file_if_changed "$SHARED_PATH_FILE" <<'EOF'
 # Added by dev-setup: shared PATH entries.
 if [ -d "$HOME/.opencode/bin" ]; then
   case ":$PATH:" in
@@ -494,6 +549,13 @@ EOF
 
   ensure_line_in_file "$BASHRC_TARGET" '[ -f "$HOME/.config/dev-setup/path.sh" ] && . "$HOME/.config/dev-setup/path.sh"'
   ensure_line_in_file "$ZSHRC_TARGET" '[ -f "$HOME/.config/dev-setup/path.sh" ] && . "$HOME/.config/dev-setup/path.sh"'
+}
+
+load_shared_shell_path() {
+  if [ -f "$SHARED_PATH_FILE" ]; then
+    # shellcheck disable=SC1090
+    . "$SHARED_PATH_FILE"
+  fi
 }
 
 install_zshrc() {
@@ -525,13 +587,41 @@ install_zshrc() {
   } >>"$ZSHRC_TARGET"
 }
 
+get_login_shell() {
+  if [ "$OS_TYPE" = "Darwin" ] && require_command dscl; then
+    dscl . -read "/Users/$USER" UserShell 2>/dev/null | awk '{print $2}'
+    return
+  fi
+
+  if require_command getent; then
+    getent passwd "$USER" | cut -d: -f7
+    return
+  fi
+
+  awk -F: -v user="$USER" '$1 == user {print $7}' /etc/passwd
+}
+
+ensure_zsh_listed_in_shells() {
+  local zsh_path="$1"
+
+  if grep -Fqx "$zsh_path" /etc/shells; then
+    return
+  fi
+
+  log "Adding $zsh_path to /etc/shells"
+  printf '%s\n' "$zsh_path" | sudo tee -a /etc/shells >/dev/null
+}
+
 set_default_shell_to_zsh() {
   local zsh_path
+  local login_shell
   zsh_path="$(command -v zsh || true)"
 
   [ -n "$zsh_path" ] || die "zsh is not installed"
 
-  if [ "${SHELL:-}" = "$zsh_path" ]; then
+  login_shell="$(get_login_shell || true)"
+
+  if [ "$login_shell" = "$zsh_path" ]; then
     log "Default shell already set to zsh"
     return
   fi
@@ -542,7 +632,12 @@ set_default_shell_to_zsh() {
   fi
 
   log "Setting default shell to zsh"
-  chsh -s "$zsh_path"
+
+  if [ "$OS_TYPE" = "Darwin" ]; then
+    ensure_zsh_listed_in_shells "$zsh_path"
+  fi
+
+  sudo chsh -s "$zsh_path" "$USER"
 }
 
 run_optional_mcp_setup() {
@@ -570,23 +665,27 @@ run_optional_github_setup() {
 }
 
 print_post_setup_summary() {
-  local shell_path shell_process node_version npm_version gh_version codex_path
+  local shell_path shell_process login_shell node_version npm_version gh_version codex_path opencode_path
   local ssh_check_output
 
   shell_path="${SHELL:-unknown}"
   shell_process="${0:-unknown}"
+  login_shell="$(get_login_shell || printf 'unknown')"
   node_version="$(node -v 2>/dev/null || printf 'missing')"
   npm_version="$(npm -v 2>/dev/null || printf 'missing')"
   gh_version="$(gh --version 2>/dev/null | awk 'NR==1 {print $3}' || printf 'missing')"
   codex_path="$(command -v codex 2>/dev/null || printf 'missing')"
+  opencode_path="$(find_opencode_binary || printf 'missing')"
 
   log "Post-setup verification"
   printf '%s\n' "- SHELL env: $shell_path"
+  printf '%s\n' "- Login shell: $login_shell"
   printf '%s\n' "- Current shell process: $shell_process"
   printf '%s\n' "- Node: $node_version"
   printf '%s\n' "- npm: $npm_version"
   printf '%s\n' "- gh: $gh_version"
   printf '%s\n' "- codex: $codex_path"
+  printf '%s\n' "- opencode: $opencode_path"
 
   ssh_check_output="$(ssh -T -o BatchMode=yes -o ConnectTimeout=5 git@github.com 2>&1 || true)"
   if printf '%s' "$ssh_check_output" | grep -qi 'successfully authenticated'; then
@@ -605,14 +704,17 @@ main() {
   install_core_packages
   install_oh_my_zsh
   install_powerlevel10k
+  install_p10k_config
   install_nvm
   sanitize_npm_prefix_conflicts
   load_nvm
   install_node_lts
   install_codex
   create_project_directories
-  install_zshrc
   install_shared_shell_path
+  load_shared_shell_path
+  install_zshrc
+  install_opencode
   set_default_shell_to_zsh
   run_optional_github_setup
   run_optional_mcp_setup

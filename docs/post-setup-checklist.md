@@ -1,6 +1,6 @@
 # Post-setup checklist
 
-Use this after running `./setup.sh` on a new machine.
+Use this after running `./setup.sh`, `./profiles/work.sh`, or `./profiles/personal.sh` on a new machine.
 
 ## Core tools
 
@@ -10,12 +10,15 @@ Use this after running `./setup.sh` on a new machine.
 - `node --version`
 - `npm --version`
 - `codex --version`
+- `opencode --version` (if you enabled OpenCode)
 
 ## Shell setup
 
 - `echo $SHELL`
+- `getent passwd "$USER" | cut -d: -f7` on Linux, or `dscl . -read /Users/$USER UserShell` on macOS
 - `test -d ~/.oh-my-zsh && echo oh-my-zsh-ok`
 - `test -d ~/.oh-my-zsh/custom/themes/powerlevel10k && echo p10k-ok`
+- `test -f ~/.p10k.zsh && echo p10k-config-ok`
 - `test -f ~/.zshrc && echo zshrc-ok`
 - `test -f ~/.zshrc.pre-dev-setup && echo zshrc-backup-found`
 
@@ -34,11 +37,12 @@ Use this after running `./setup.sh` on a new machine.
 
 - `wslview https://github.com`
 - verify browser-based OAuth opens in Windows
+- if prompt symbols still look wrong in Windows Terminal, install a Nerd Font on Windows and select it in your terminal profile
 
 ## Terminal behavior
 
-- verify `Shift+Enter` inserts a newline in your terminal AI tool (auto-configured on WSL when possible)
-- if needed, follow [`terminal-setup.md`](/home/daniel/dev-setup/docs/terminal-setup.md)
+- verify `Shift+Enter` inserts a newline in your terminal AI tool
+- if needed, follow the relevant platform guide in `docs/platforms/`
 
 ## Directories
 
@@ -49,6 +53,7 @@ Use this after running `./setup.sh` on a new machine.
 
 - if used, run `./modules/github.sh`
 - if used, run `INSTALL_MCP=1 ./setup.sh` or `./modules/mcp.sh`
+- if used, copy the sample config from `config/mcp/` into your Copilot CLI or OpenCode config location
 
 ## Final step
 
