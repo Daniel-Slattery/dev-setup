@@ -643,8 +643,6 @@ EOF
 
   ensure_line_in_file "$BASHRC_TARGET" '[ -f "$HOME/.config/dev-setup/path.sh" ] && . "$HOME/.config/dev-setup/path.sh"'
   ensure_line_in_file "$BASHRC_TARGET" 'command -v pyenv >/dev/null 2>&1 && eval "$(pyenv init - bash)"'
-  ensure_line_in_file "$ZSHRC_TARGET" '[ -f "$HOME/.config/dev-setup/path.sh" ] && . "$HOME/.config/dev-setup/path.sh"'
-  ensure_line_in_file "$ZSHRC_TARGET" 'command -v pyenv >/dev/null 2>&1 && eval "$(pyenv init - zsh)"'
 }
 
 load_shared_shell_path() {
@@ -669,7 +667,33 @@ install_zshrc() {
   marker_end="# <<< dev-setup zsh additions <<<"
 
   if grep -Fq "$marker_start" "$ZSHRC_TARGET"; then
-    log ".zshrc already includes dev-setup additions"
+    local tmp_file
+    tmp_file="$(mktemp)"
+
+    backup_file_once "$ZSHRC_TARGET" "$HOME/.zshrc.pre-dev-setup"
+
+    awk -v marker_start="$marker_start" -v marker_end="$marker_end" -v append_file="$ZSHRC_APPEND_SOURCE" '
+      $0 == marker_start {
+        print
+        while ((getline line < append_file) > 0) {
+          print line
+        }
+        close(append_file)
+        in_block = 1
+        next
+      }
+
+      $0 == marker_end {
+        in_block = 0
+        print
+        next
+      }
+
+      !in_block { print }
+    ' "$ZSHRC_TARGET" >"$tmp_file"
+
+    mv "$tmp_file" "$ZSHRC_TARGET"
+    log "Refreshed dev-setup zsh additions"
     return
   fi
 
