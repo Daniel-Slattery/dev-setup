@@ -10,6 +10,9 @@ MCP_SETUP_SCRIPT="$SCRIPT_DIR/modules/mcp.sh"
 GITHUB_SETUP_SCRIPT="$SCRIPT_DIR/modules/github.sh"
 P10K_CONFIG_SOURCE="$SCRIPT_DIR/config/p10k/p10k.zsh"
 P10K_CONFIG_TARGET="$HOME/.p10k.zsh"
+OPENCODE_CONFIG_TEMPLATE="$SCRIPT_DIR/config/mcp/opencode.personal.example.json"
+OPENCODE_CONFIG_DIR="$HOME/.config/opencode"
+OPENCODE_CONFIG_TARGET="$OPENCODE_CONFIG_DIR/opencode.json"
 NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 PYENV_ROOT="${PYENV_ROOT:-$HOME/.pyenv}"
 OH_MY_ZSH_DIR="${ZSH:-$HOME/.oh-my-zsh}"
@@ -559,16 +562,6 @@ install_node_lts() {
   fi
 }
 
-install_codex() {
-  if npm list -g --depth=0 @openai/codex >/dev/null 2>&1; then
-    log "Codex already installed: @openai/codex"
-    return
-  fi
-
-  log "Installing Codex: @openai/codex"
-  npm install -g @openai/codex
-}
-
 find_opencode_binary() {
   if require_command opencode; then
     command -v opencode
@@ -593,6 +586,31 @@ install_opencode() {
 
   log "Installing OpenCode"
   curl -fsSL https://opencode.ai/install | bash
+}
+
+install_opencode_config() {
+  if [ "$INSTALL_OPENCODE" != "1" ]; then
+    return
+  fi
+
+  [ -f "$OPENCODE_CONFIG_TEMPLATE" ] || die "Missing OpenCode config template at $OPENCODE_CONFIG_TEMPLATE"
+
+  mkdir -p "$OPENCODE_CONFIG_DIR"
+
+  if [ -f "$OPENCODE_CONFIG_TARGET" ]; then
+    log "OpenCode config already exists: $OPENCODE_CONFIG_TARGET"
+    return
+  fi
+
+  log "Installing default OpenCode config to $OPENCODE_CONFIG_TARGET"
+  awk -v projects_path="$HOME/projects" '{
+    gsub("/ABSOLUTE/PATH/TO/projects", projects_path)
+    print
+  }' "$OPENCODE_CONFIG_TEMPLATE" >"$OPENCODE_CONFIG_TARGET"
+
+  if grep -Fq 'REPLACE_WITH_GITHUB_TOKEN' "$OPENCODE_CONFIG_TARGET"; then
+    log "Update GITHUB_PERSONAL_ACCESS_TOKEN in $OPENCODE_CONFIG_TARGET before using the GitHub MCP server"
+  fi
 }
 
 create_project_directories() {
@@ -762,13 +780,13 @@ set_default_shell_to_zsh() {
 
 run_optional_mcp_setup() {
   if [ "$INSTALL_MCP" != "1" ]; then
-    log "Skipping MCP setup. Set INSTALL_MCP=1 to enable it"
+    log "Skipping MCP server setup. Set INSTALL_MCP=1 to enable it"
     return
   fi
 
-  [ -x "$MCP_SETUP_SCRIPT" ] || die "Missing executable MCP setup script at $MCP_SETUP_SCRIPT"
+  [ -x "$MCP_SETUP_SCRIPT" ] || die "Missing executable MCP server setup script at $MCP_SETUP_SCRIPT"
 
-  log "Running optional MCP setup"
+  log "Running optional MCP server setup"
   "$MCP_SETUP_SCRIPT"
 }
 
@@ -785,7 +803,7 @@ run_optional_github_setup() {
 }
 
 print_post_setup_summary() {
-  local shell_path shell_process login_shell node_version npm_version gh_version python_version pyenv_version codex_path opencode_path
+  local shell_path shell_process login_shell node_version npm_version gh_version python_version pyenv_version opencode_path
   local ssh_check_output
 
   shell_path="${SHELL:-unknown}"
@@ -796,7 +814,6 @@ print_post_setup_summary() {
   gh_version="$(gh --version 2>/dev/null | awk 'NR==1 {print $3}' || printf 'missing')"
   python_version="$(python --version 2>/dev/null || printf 'missing')"
   pyenv_version="$(pyenv --version 2>/dev/null || printf 'missing')"
-  codex_path="$(command -v codex 2>/dev/null || printf 'missing')"
   opencode_path="$(find_opencode_binary || printf 'missing')"
 
   log "Post-setup verification"
@@ -808,7 +825,6 @@ print_post_setup_summary() {
   printf '%s\n' "- Node: $node_version"
   printf '%s\n' "- npm: $npm_version"
   printf '%s\n' "- gh: $gh_version"
-  printf '%s\n' "- codex: $codex_path"
   printf '%s\n' "- opencode: $opencode_path"
 
   ssh_check_output="$(ssh -T -o BatchMode=yes -o ConnectTimeout=5 git@github.com 2>&1 || true)"
@@ -836,12 +852,12 @@ main() {
   install_pyenv
   load_pyenv
   install_latest_python_with_pyenv
-  install_codex
   create_project_directories
   install_shared_shell_path
   load_shared_shell_path
   install_zshrc
   install_opencode
+  install_opencode_config
   set_default_shell_to_zsh
   run_optional_github_setup
   run_optional_mcp_setup

@@ -11,7 +11,6 @@ Use this after running `./setup.sh`, `./profiles/work.sh`, or `./profiles/person
 - `python --version`
 - `node --version`
 - `npm --version`
-- `codex --version`
 - `opencode --version` (if you enabled OpenCode)
 
 ## Shell setup

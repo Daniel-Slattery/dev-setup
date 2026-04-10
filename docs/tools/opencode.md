@@ -19,19 +19,22 @@ The personal profile enables that by default:
 
 ## Suggested destination
 
-Copy the file you want to:
+By default, the setup now installs the personal example to:
 
 ```text
 ~/.config/opencode/opencode.json
 ```
 
-## What to change after copying
+If that file already exists, setup leaves it unchanged.
+
+## What to change after install or copying
 
 Replace:
 
-- `/ABSOLUTE/PATH/TO/projects` with your real projects directory
 - `REPLACE_WITH_GITHUB_TOKEN` with a real token if you enable the GitHub server
 - `REPLACE_WITH_POSTGRES_CONNECTION_STRING` with a real connection string if you enable Postgres
+
+The setup script replaces `/ABSOLUTE/PATH/TO/projects` with `$HOME/projects` automatically when it creates the file.
 
 ## Notes
 

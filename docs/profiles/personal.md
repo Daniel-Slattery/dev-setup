@@ -12,27 +12,22 @@ cd ~/dev-setup
 ## What it enables by default
 
 - `SETUP_GITHUB=1`
-- `INSTALL_MCP=0`
+- `INSTALL_MCP=1`
 - `INSTALL_OPENCODE=1`
 
 That keeps the personal path focused on:
 
 - GitHub SSH setup
 - OpenCode installation
-- Optional MCP setup only when you actually want it
+- MCP server package setup for local tooling
 
 ## Typical next steps
 
 1. Complete `gh auth login` if needed
-2. Copy `config/mcp/opencode.personal.example.json`
-3. Replace placeholder paths and any token values
-4. Save it to `~/.config/opencode/opencode.json`
+2. Review `~/.config/opencode/opencode.json`
+3. Replace any token placeholders you want to enable
 
-If you also want Codex MCP servers on this machine, run:
-
-```bash
-INSTALL_MCP=1 ./setup.sh
-```
+The personal profile now runs the optional MCP server package setup step by default and creates `~/.config/opencode/opencode.json` automatically when that file does not already exist.
 
 See:
 

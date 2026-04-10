@@ -18,7 +18,7 @@ cd ~/dev-setup
 That keeps the work path focused on:
 
 - GitHub SSH setup for private repos and `gh`
-- MCP server package installation for Codex/Copilot CLI workflows
+- MCP server package installation for local MCP workflows
 - A conservative default that does not install OpenCode unless you opt in
 
 ## Typical next steps

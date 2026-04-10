@@ -34,7 +34,7 @@ SET_DEFAULT_SHELL=1 ./setup.sh
 | `profiles/work.sh` | Work-oriented wrapper around `setup.sh` |
 | `profiles/personal.sh` | Personal-oriented wrapper around `setup.sh` |
 | `modules/github.sh` | Optional GitHub SSH and `gh` bootstrap |
-| `modules/mcp.sh` | Optional MCP package/bootstrap helper for Codex |
+| `modules/mcp.sh` | Optional MCP server package helper |
 | `config/mcp/` | Example MCP config files for Copilot CLI and OpenCode |
 | `config/p10k/p10k.zsh` | Managed powerlevel10k config copied to `~/.p10k.zsh` |
 | `docs/platforms/` | macOS and WSL-specific notes |
@@ -57,7 +57,6 @@ SET_DEFAULT_SHELL=1 ./setup.sh
 - Auto-initializes `pyenv` so `.python-version` files work in new shells
 - Removes npm prefix/globalconfig conflicts that break `nvm`
 - Installs the latest LTS Node version and sets it as default
-- Installs Codex via `npm install -g @openai/codex`
 - Optionally installs OpenCode when `INSTALL_OPENCODE=1`
 - Creates:
   - `~/projects/frontend`
@@ -66,14 +65,14 @@ SET_DEFAULT_SHELL=1 ./setup.sh
 - Copies `zshrc` only when `~/.zshrc` does not exist
 - Appends managed additions to existing `~/.zshrc` instead of replacing it
 - Optionally prepares GitHub SSH setup when `SETUP_GITHUB=1` is set
-- Optionally installs MCP server packages and prints Codex registration commands when `INSTALL_MCP=1` is set
+- Optionally installs MCP server packages and prints optional Codex registration commands when `INSTALL_MCP=1` is set
 
 ## Modules
 
 `modules/` is just a repo convention for **optional setup layers**.
 
 - `modules/github.sh` handles SSH key generation and `gh` SSH defaults
-- `modules/mcp.sh` handles MCP package installation plus Codex registration commands
+- `modules/mcp.sh` handles MCP server package installation plus optional Codex registration commands
 
 They are kept separate because they either depend on secrets, browser auth, or user-specific decisions.
 
@@ -93,7 +92,7 @@ They are kept separate because they either depend on secrets, browser auth, or u
 - Re-running refreshes Node to the current LTS release and keeps it as default
 - Requires `sudo`
 - GitHub setup is opt-in and disabled by default
-- MCP setup is opt-in and disabled by default
+- MCP setup is opt-in in the base setup and enabled by default in the work and personal profiles
 - OpenCode install is opt-in and disabled by default
 - Default shell switching is opt-in and disabled by default
 - Windows Terminal `Shift+Enter` mapping can be disabled with `CONFIGURE_WT_SHIFT_ENTER=0`

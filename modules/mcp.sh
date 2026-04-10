@@ -43,15 +43,6 @@ load_mcp_env() {
   set +a
 }
 
-ensure_codex_available() {
-  if require_command codex; then
-    log "Codex CLI already available"
-    return
-  fi
-
-  die "Codex CLI is required before MCP setup. Run the main setup first"
-}
-
 ensure_manifest_exists() {
   [ -f "$MCP_MANIFEST" ] || die "Missing MCP manifest at $MCP_MANIFEST"
 }
@@ -93,18 +84,17 @@ process_manifest() {
     fi
 
     if [ -n "$install_cmd" ] && [ "$install_cmd" != "-" ]; then
-      log "Register with Codex:"
+      log "Codex registration command (optional):"
       printf '%s\n' "$install_cmd"
     fi
   done < "$MCP_MANIFEST"
 }
 
 main() {
-  log "Starting optional MCP setup"
-  ensure_codex_available
+  log "Starting optional MCP server setup"
   load_mcp_env
   process_manifest
-  log "MCP setup complete"
+  log "MCP server setup complete"
 }
 
 main "$@"
