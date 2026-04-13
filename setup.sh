@@ -63,6 +63,10 @@ require_command() {
   command -v "$1" >/dev/null 2>&1
 }
 
+is_interactive_shell() {
+  [ -t 0 ] && [ -t 1 ]
+}
+
 ensure_file_exists() {
   local file="$1"
 
@@ -419,6 +423,64 @@ install_core_packages() {
       die "Unsupported operating system: $OS_TYPE"
       ;;
   esac
+}
+
+configure_git_identity() {
+  local current_name current_email target_name target_email
+
+  if ! require_command git; then
+    log "Skipping git identity setup because git is not installed yet"
+    return
+  fi
+
+  current_name="$(git config --global --get user.name || true)"
+  current_email="$(git config --global --get user.email || true)"
+  target_name="${GIT_USER_NAME:-$current_name}"
+  target_email="${GIT_USER_EMAIL:-$current_email}"
+
+  if [ -n "$current_name" ] && [ -n "$current_email" ] \
+    && [ -z "${GIT_USER_NAME:-}" ] && [ -z "${GIT_USER_EMAIL:-}" ]; then
+    log "Global git identity already configured: $current_name <$current_email>"
+    return
+  fi
+
+  if [ -n "${GIT_USER_NAME:-}" ] && [ -n "${GIT_USER_EMAIL:-}" ]; then
+    git config --global user.name "$GIT_USER_NAME"
+    git config --global user.email "$GIT_USER_EMAIL"
+    log "Configured global git identity: $GIT_USER_NAME <$GIT_USER_EMAIL>"
+    return
+  fi
+
+  if ! is_interactive_shell; then
+    log "Global git identity is incomplete; rerun interactively or set GIT_USER_NAME and GIT_USER_EMAIL"
+    return
+  fi
+
+  printf '\n'
+  printf 'Git author name for commits'
+  if [ -n "$current_name" ]; then
+    printf ' [%s]' "$current_name"
+  fi
+  printf ': '
+  IFS= read -r target_name
+  target_name="${target_name:-$current_name}"
+
+  printf 'Git author email for commits'
+  if [ -n "$current_email" ]; then
+    printf ' [%s]' "$current_email"
+  fi
+  printf ': '
+  IFS= read -r target_email
+  target_email="${target_email:-$current_email}"
+
+  if [ -z "$target_name" ] || [ -z "$target_email" ]; then
+    log "Skipping git identity setup because name or email was left blank"
+    return
+  fi
+
+  git config --global user.name "$target_name"
+  git config --global user.email "$target_email"
+  log "Configured global git identity: $target_name <$target_email>"
 }
 
 install_oh_my_zsh() {
@@ -837,7 +899,7 @@ run_optional_github_setup() {
 }
 
 print_post_setup_summary() {
-  local shell_path shell_process login_shell node_version npm_version gh_version python_version pyenv_version opencode_path
+  local shell_path shell_process login_shell node_version npm_version gh_version python_version pyenv_version opencode_path git_user_name git_user_email
   local ssh_check_output
 
   shell_path="${SHELL:-unknown}"
@@ -849,6 +911,8 @@ print_post_setup_summary() {
   python_version="$(python --version 2>/dev/null || printf 'missing')"
   pyenv_version="$(pyenv --version 2>/dev/null || printf 'missing')"
   opencode_path="$(find_opencode_binary || printf 'missing')"
+  git_user_name="$(git config --global --get user.name 2>/dev/null || true)"
+  git_user_email="$(git config --global --get user.email 2>/dev/null || true)"
 
   log "Post-setup verification"
   printf '%s\n' "- SHELL env: $shell_path"
@@ -860,6 +924,11 @@ print_post_setup_summary() {
   printf '%s\n' "- npm: $npm_version"
   printf '%s\n' "- gh: $gh_version"
   printf '%s\n' "- opencode: $opencode_path"
+  if [ -n "$git_user_name" ] && [ -n "$git_user_email" ]; then
+    printf '%s\n' "- Git identity: $git_user_name <$git_user_email>"
+  else
+    printf '%s\n' "- Git identity: not configured"
+  fi
 
   ssh_check_output="$(ssh -T -o BatchMode=yes -o ConnectTimeout=5 git@github.com 2>&1 || true)"
   if printf '%s' "$ssh_check_output" | grep -qi 'successfully authenticated'; then
@@ -876,6 +945,7 @@ main() {
   preflight_checks
   configure_windows_terminal_shift_enter
   install_core_packages
+  configure_git_identity
   install_oh_my_zsh
   install_powerlevel10k
   install_p10k_config
