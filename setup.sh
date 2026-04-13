@@ -640,6 +640,34 @@ install_shared_shell_path() {
 
   write_file_if_changed "$SHARED_PATH_FILE" <<'EOF'
 # Added by dev-setup: shared PATH entries.
+if [ -d "/opt/homebrew/bin" ]; then
+  case ":$PATH:" in
+    *":/opt/homebrew/bin:"*) ;;
+    *) PATH="/opt/homebrew/bin:$PATH" ;;
+  esac
+fi
+
+if [ -d "/opt/homebrew/sbin" ]; then
+  case ":$PATH:" in
+    *":/opt/homebrew/sbin:"*) ;;
+    *) PATH="/opt/homebrew/sbin:$PATH" ;;
+  esac
+fi
+
+if [ -d "/usr/local/bin" ]; then
+  case ":$PATH:" in
+    *":/usr/local/bin:"*) ;;
+    *) PATH="/usr/local/bin:$PATH" ;;
+  esac
+fi
+
+if [ -d "/usr/local/sbin" ]; then
+  case ":$PATH:" in
+    *":/usr/local/sbin:"*) ;;
+    *) PATH="/usr/local/sbin:$PATH" ;;
+  esac
+fi
+
 export PYENV_ROOT="${PYENV_ROOT:-$HOME/.pyenv}"
 if [ -d "$PYENV_ROOT/bin" ]; then
   case ":$PATH:" in
