@@ -54,6 +54,11 @@ require_sudo() {
   fi
 }
 
+refresh_sudo_credentials() {
+  log "Refreshing sudo credentials"
+  sudo -v
+}
+
 require_command() {
   command -v "$1" >/dev/null 2>&1
 }
@@ -271,6 +276,7 @@ install_homebrew() {
     return
   fi
 
+  refresh_sudo_credentials
   log "Installing Homebrew"
   NONINTERACTIVE=1 bash -c \
     "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"

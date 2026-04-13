@@ -10,12 +10,14 @@ The repo is public, so GitHub auth is **not** required to clone it.
 git clone https://github.com/Daniel-Slattery/dev-setup.git ~/dev-setup
 cd ~/dev-setup
 chmod +x setup.sh profiles/work.sh profiles/personal.sh
+sudo -v
 ./setup.sh
 ```
 
 If you already know the profile you want, use one of the wrappers instead:
 
 ```bash
+sudo -v
 ./profiles/work.sh
 ./profiles/personal.sh
 ```
@@ -91,6 +93,7 @@ They are kept separate because they either depend on secrets, browser auth, or u
 - Safe to re-run
 - Re-running refreshes Node to the current LTS release and keeps it as default
 - Requires `sudo`
+- On macOS, the setup refreshes `sudo` before running the non-interactive Homebrew installer
 - GitHub setup is opt-in and disabled by default
 - MCP setup is opt-in in the base setup and enabled by default in the work and personal profiles
 - OpenCode install is opt-in and disabled by default

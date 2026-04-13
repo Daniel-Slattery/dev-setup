@@ -7,12 +7,14 @@ Use this when the target machine is **macOS**.
 ```bash
 git clone https://github.com/Daniel-Slattery/dev-setup.git ~/dev-setup
 cd ~/dev-setup
+sudo -v
 ./setup.sh
 ```
 
 Or use a profile wrapper:
 
 ```bash
+sudo -v
 ./profiles/work.sh
 ./profiles/personal.sh
 ```
@@ -22,6 +24,7 @@ Or use a profile wrapper:
 ## What is macOS-specific
 
 - `setup.sh` installs Homebrew if needed
+- `setup.sh` refreshes `sudo` credentials before running the Homebrew installer in non-interactive mode
 - `setup.sh` waits for Xcode Command Line Tools when they are not already installed
 - `bubblewrap` is skipped on macOS
 - If Homebrew installs `zsh` outside the default shell list, the script now adds it to `/etc/shells` before calling `chsh`
