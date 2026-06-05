@@ -81,10 +81,10 @@ Access to GitHub repos, issues, pull requests, and code search.
 
 ### fable
 
-Sainsbury's Fable design system — component props, tokens, and usage guidance.
+Fable design system — component props, tokens, and usage guidance.
 
 - **Source:** `@sainsburys-tech/fable-mcp` (private npm registry)
-- **Registry:** `https://npm.pkg.github.com` — requires `@sainsburys-tech:registry` in `~/.npmrc` and a scoped GitHub token with `read:packages` scope. See [Sainsbury's private npm registry](#sainsburys-private-npm-registry).
+- **Registry:** `https://npm.pkg.github.com` — requires `@sainsburys-tech:registry` in `~/.npmrc` and a scoped GitHub token with `read:packages` scope.
 - **Env vars:** None (auth is via `.npmrc`)
 
 ```json
@@ -284,20 +284,6 @@ The Figma MCP server is not a standalone package — it is built into the Figma 
 3. Enable **MCP Server**
 
 The app then serves the MCP endpoint at `http://127.0.0.1:3845/mcp`. If Figma is not running, this server is unavailable.
-
-### Sainsbury's private npm registry
-
-`@sainsburys-tech` packages (including `fable-mcp`) are published to GitHub's npm registry. To install them you need:
-
-1. A GitHub personal access token with `read:packages` scope
-2. The following in `~/.npmrc`:
-
-```
-@sainsburys-tech:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN
-```
-
-The `npx` command in the fable config passes `--@sainsburys-tech:registry=...` inline, so you can also scope it to just that invocation rather than a global `.npmrc` entry.
 
 ### Remote servers and Copilot CLI
 
